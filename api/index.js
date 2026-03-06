@@ -1488,13 +1488,13 @@ const cloudinary = require('cloudinary').v2;
 
 const app = express();
 
-// ✅ 1. CORS Configuration (UPDATED - Multiple Origins)
+// ✅ 1. CORS Configuration
 app.use(cors({
     origin: [
-        'https://nextsign.netlify.app',      // ✅ Netlify Frontend
-        'https://nextsignfrontend-aeo8.vercel.app', // ✅ Vercel Frontend (পুরানো)
-        'http://localhost:3000',             // ✅ Local Development
-        'http://localhost:5173'              // ✅ Vite Local
+        'https://nextsign.netlify.app',
+        'https://nextsignfrontend-aeo8.vercel.app',
+        'http://localhost:3000',
+        'http://localhost:5173'
     ],
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
