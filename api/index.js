@@ -1278,6 +1278,206 @@
 
 // // ✅ Export for Vercel
 // module.exports = app;const express = require('express');
+// require('dotenv').config();
+// const express = require('express');
+// const mongoose = require('mongoose');
+// const cors = require('cors');
+// const axios = require('axios');
+// const nodemailer = require('nodemailer');
+// const { PDFDocument } = require('pdf-lib');
+// const cloudinary = require('cloudinary').v2;
+
+// const app = express();
+
+// // ✅ 1. CORS Configuration (Fixed)
+// app.use(cors({
+//     origin: true,
+//     credentials: true,
+//     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+//     allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept']
+// }));
+
+// // ✅ 2. Remove problematic app.options('*', cors())
+// // Express already handles OPTIONS requests automatically
+
+// app.use(express.json({ limit: '50mb' }));
+
+// // ✅ 3. Welcome Route
+// app.get('/', (req, res) => {
+//     res.status(200).send('🚀 Fixensy Backend is Live and Running!');
+// });
+
+// // ✅ 4. Cloudinary Config
+// cloudinary.config({ 
+//   cloud_name: process.env.CLOUDINARY_CLOUD_NAME, 
+//   api_key: process.env.CLOUDINARY_API_KEY, 
+//   api_secret: process.env.CLOUDINARY_API_SECRET 
+// });
+
+// // ✅ 5. DB Connection Logic
+// let isConnected = false;
+// const connectDB = async () => {
+//     if (isConnected) return;
+//     try {
+//         if (!process.env.MONGO_URI) {
+//             console.error("❌ MONGO_URI is not set in environment variables");
+//             throw new Error("MongoDB URI not configured");
+//         }
+//         mongoose.set('strictQuery', true);
+//         await mongoose.connect(process.env.MONGO_URI);
+//         isConnected = true;
+//         console.log("✅ MongoDB Connected");
+//     } catch (err) {
+//         console.error("❌ DB Error:", err.message);
+//         throw err;
+//     }
+// };
+
+// // ✅ 6. Schema
+// const documentSchema = new mongoose.Schema({
+//   pdfPath: String, 
+//   signedPdf: String, 
+//   signs: Array, 
+//   name: String,
+//   signerEmail: String, 
+//   status: { type: String, default: 'Pending' },
+//   otp: String, 
+//   tempSignData: Object 
+// }, { timestamps: true });
+
+// const Document = mongoose.models.Document || mongoose.model('Document', documentSchema);
+
+// // ✅ 7. API Routes with Error Handling
+// app.get('/api/documents', async (req, res) => {
+//     try {
+//         await connectDB();
+//         const docs = await Document.find().sort({ createdAt: -1 }).lean();
+//         res.status(200).json(docs);
+//     } catch (e) {
+//         console.error("❌ /api/documents Error:", e.message);
+//         res.status(500).json({ error: e.message });
+//     }
+// });
+
+// app.post('/api/generate-link', async (req, res) => {
+//     try {
+//         await connectDB();
+//         const newDoc = new Document(req.body);
+//         const saved = await newDoc.save();
+//         res.status(200).json({ id: saved._id });
+//     } catch (e) {
+//         console.error("❌ /api/generate-link Error:", e.message);
+//         res.status(500).json({ error: e.message });
+//     }
+// });
+
+// app.get('/api/doc/:id', async (req, res) => {
+//     try {
+//         await connectDB();
+//         const doc = await Document.findById(req.params.id);
+//         if (!doc) return res.status(404).json({ error: "Document not found" });
+//         res.json(doc);
+//     } catch (e) {
+//         console.error("❌ /api/doc/:id Error:", e.message);
+//         res.status(500).json({ error: e.message });
+//     }
+// });
+
+// app.post('/api/submit-sign/:id', async (req, res) => {
+//     try {
+//         await connectDB();
+//         const { signaturesMap, email } = req.body;
+//         const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
+        
+//         await Document.findByIdAndUpdate(req.params.id, {
+//             signerEmail: email, otp: otpCode, tempSignData: signaturesMap
+//         });
+        
+//         if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
+//             console.error("❌ Email credentials not set");
+//             return res.status(500).json({ error: "Email credentials not configured" });
+//         }
+
+//         const transporter = nodemailer.createTransport({
+//             service: 'gmail',
+//             auth: { user: process.env.EMAIL_USER, pass: process.env.EMAIL_PASS }
+//         });
+        
+//         await transporter.sendMail({
+//             from: `"FixenSysign" <${process.env.EMAIL_USER}>`,
+//             to: email,
+//             subject: "Verification Code: " + otpCode,
+//             html: `<h2>OTP: ${otpCode}</h2>`
+//         });
+        
+//         res.json({ success: true });
+//     } catch (e) {
+//         console.error("❌ /api/submit-sign/:id Error:", e.message);
+//         res.status(500).json({ error: e.message });
+//     }
+// });
+
+// app.post('/api/verify-otp', async (req, res) => {
+//     try {
+//         await connectDB();
+//         const { id, otp } = req.body;
+//         const doc = await Document.findById(id);
+        
+//         if (!doc) return res.status(404).json({ error: "Document not found" });
+//         if (doc.otp !== otp) return res.status(400).json({ error: "Invalid OTP" });
+
+//         const pdfBytes = await axios.get(doc.pdfPath, { responseType: 'arraybuffer' }).then(r => r.data);
+//         const pdfDoc = await PDFDocument.load(pdfBytes);
+        
+//         for (const sig of doc.signs) {
+//             const signatureData = doc.tempSignData[sig.id || sig._id];
+//             if (!signatureData) continue;
+//             const sigImg = await pdfDoc.embedPng(signatureData);
+//             const page = pdfDoc.getPages()[sig.page - 1];
+//             const { height, width } = page.getSize();
+            
+//             page.drawImage(sigImg, { 
+//                 x: (sig.x * width) / 600, 
+//                 y: height - ((sig.y * height) / (height * (600/width))) - 50, 
+//                 width: 150 * (width/600), height: 50 * (width/600)
+//             });
+//         }
+
+//         const pdfBuffer = await pdfDoc.save(); 
+//         const b64Signed = Buffer.from(pdfBuffer).toString('base64');
+        
+//         const cldRes = await cloudinary.uploader.upload(`data:application/pdf;base64,${b64Signed}`, {
+//             resource_type: "auto", folder: "signed_docs"
+//         });
+
+//         doc.signedPdf = cldRes.secure_url;
+//         doc.status = 'Signed';
+//         doc.otp = null; 
+//         await doc.save();
+
+//         const transporter = nodemailer.createTransport({
+//             service: 'gmail',
+//             auth: { user: process.env.EMAIL_USER, pass: process.env.EMAIL_PASS }
+//         });
+        
+//         await transporter.sendMail({
+//             from: `"FixenSysign"`,
+//             to: doc.signerEmail,
+//             subject: 'Document Signed Successfully',
+//             attachments: [{ filename: 'Signed_Doc.pdf', content: pdfBuffer }],
+//             html: '<p>Attached is your signed document.</p>'
+//         });
+        
+//         res.json({ pdf: cldRes.secure_url });
+//     } catch (e) { 
+//         console.error("❌ /api/verify-otp Error:", e.message);
+//         res.status(500).json({ error: e.message }); 
+//     }
+// });
+
+// // ✅ 8. Vercel Export
+// module.exports = app;
+
 require('dotenv').config();
 const express = require('express');
 const mongoose = require('mongoose');
@@ -1289,7 +1489,7 @@ const cloudinary = require('cloudinary').v2;
 
 const app = express();
 
-// ✅ 1. CORS Configuration (Fixed)
+// ✅ 1. CORS Configuration
 app.use(cors({
     origin: true,
     credentials: true,
@@ -1297,24 +1497,21 @@ app.use(cors({
     allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept']
 }));
 
-// ✅ 2. Remove problematic app.options('*', cors())
-// Express already handles OPTIONS requests automatically
-
 app.use(express.json({ limit: '50mb' }));
 
-// ✅ 3. Welcome Route
+// ✅ 2. Welcome Route
 app.get('/', (req, res) => {
     res.status(200).send('🚀 Fixensy Backend is Live and Running!');
 });
 
-// ✅ 4. Cloudinary Config
+// ✅ 3. Cloudinary Config
 cloudinary.config({ 
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME, 
   api_key: process.env.CLOUDINARY_API_KEY, 
   api_secret: process.env.CLOUDINARY_API_SECRET 
 });
 
-// ✅ 5. DB Connection Logic
+// ✅ 4. DB Connection Logic
 let isConnected = false;
 const connectDB = async () => {
     if (isConnected) return;
@@ -1333,7 +1530,7 @@ const connectDB = async () => {
     }
 };
 
-// ✅ 6. Schema
+// ✅ 5. Schema
 const documentSchema = new mongoose.Schema({
   pdfPath: String, 
   signedPdf: String, 
@@ -1347,7 +1544,7 @@ const documentSchema = new mongoose.Schema({
 
 const Document = mongoose.models.Document || mongoose.model('Document', documentSchema);
 
-// ✅ 7. API Routes with Error Handling
+// ✅ 6. API Routes
 app.get('/api/documents', async (req, res) => {
     try {
         await connectDB();
@@ -1475,5 +1672,5 @@ app.post('/api/verify-otp', async (req, res) => {
     }
 });
 
-// ✅ 8. Vercel Export
+// ✅ 7. Vercel Export
 module.exports = app;
