@@ -1477,7 +1477,6 @@
 
 // // ✅ 8. Vercel Export
 // module.exports = app;
-
 require('dotenv').config();
 const express = require('express');
 const mongoose = require('mongoose');
@@ -1489,12 +1488,14 @@ const cloudinary = require('cloudinary').v2;
 
 const app = express();
 
-// ✅ 1. CORS Configuration
+// ✅ 1. CORS Configuration (FIXED)
 app.use(cors({
-    origin: true,
+    // ✅ আপনার Frontend URL দিন (origin: true না দিয়ে)
+    origin: ['https://nextsignfrontend-aeo8.vercel.app'],
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept']
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept'],
+    exposedHeaders: ['Content-Length', 'X-Request-Id']
 }));
 
 app.use(express.json({ limit: '50mb' }));
