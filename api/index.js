@@ -1677,5 +1677,8 @@ app.post('/api/verify-otp', async (req, res) => {
     }
 });
 
-// ✅ 7. Vercel Export
-module.exports = app;
+// ✅ 7. Railway Export (app.listen ব্যবহার করুন)
+const PORT = process.env.PORT || 5011;
+app.listen(PORT, () => {
+    console.log(`🚀 Server running on port ${PORT}`);
+});
